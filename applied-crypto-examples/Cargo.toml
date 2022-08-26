@@ -1,0 +1,11 @@
+[package]
+name = "applied-crypto-examples"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "merlin"
+path = "src/bin/merlin.rs"
+
+[dependencies]
+merlin = "3.0.0"

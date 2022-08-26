@@ -1,0 +1,2 @@
+[workspace]
+members = [ "applied-crypto-examples" ]
