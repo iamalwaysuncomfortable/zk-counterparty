@@ -8,4 +8,6 @@ name = "merlin"
 path = "src/bin/merlin.rs"
 
 [dependencies]
+curve25519-dalek = "4.0.0-pre.2"
+hex = "0.4.3"
 merlin = "3.0.0"
