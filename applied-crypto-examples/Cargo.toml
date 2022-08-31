@@ -2,10 +2,13 @@
 name = "applied-crypto-examples"
 version = "0.1.0"
 edition = "2021"
-
 [[bin]]
 name = "merlin"
 path = "src/bin/merlin.rs"
 
 [dependencies]
+curve25519-dalek = "4.0.0-pre.2"
+hex = "0.4.3"
 merlin = "3.0.0"
+
+[lib]
