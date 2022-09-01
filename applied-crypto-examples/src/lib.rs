@@ -1,3 +1,7 @@
+mod config;
 mod merlin_basics;
 
-pub use crate::merlin_basics::merlin_basics_tutorial;
+pub use crate::{
+    config::{ConfigArgs, Tutorials},
+    merlin_basics::merlin_basics_tutorial,
+};

@@ -1,5 +1,4 @@
 use merlin::Transcript;
-use hex;
 
 pub fn merlin_basics_tutorial() {
     // Merlin transcripts are used to create created fixed length, deterministic outputs based on
@@ -70,36 +69,61 @@ pub fn merlin_basics_tutorial() {
 
     // Executable part of the tutorial
     println!();
+    println!("This tutorial demonstrates the basic usage of merlin transcripts.");
     println!("We create two Merlin Transcripts 'absorb' the following data into both transcripts");
     println!("using the 'append_message' and 'append_u64' methods");
     println!();
     println!("Data Ingested:");
-    println!("Domain Separator {} - Message {}", "'byte-string-messages'", "'here's a note'");
-    println!("Domain Separator {} - Message {}", "'byte-string-messages'", "'here's another note'");
-    println!("Domain Separator {} - Message {}", "'number-messages'", 12345678);
-    println!("Domain Separator {} - Message {}", "'number-messages'", 800000);
+    println!("Domain Separator: 'byte-string-messages' - Message: 'here's a note'",);
+    println!("Domain Separator: 'byte-string-messages' - Message: 'here's another note'",);
+    println!("Domain Separator 'number-messages' - Message {}", 12345678);
+    println!("Domain Separator 'number-messages' - Message {}", 800000);
     println!();
     println!("We now 'squeeze' out bytes of each transcript using the 'challenge_bytes' method which allows us");
     println!("to do useful things with them like creating random numerical challenge numbers as shown below");
     println!("which are tied to the history of the transcript");
-    println!("8-byte output from transcript 1: {:?} - encoded as u64: {}", hex::encode(&buf), u64::from_le_bytes(buf));
-    println!("8-byte output from transcript 2: {:?} - encoded as u64: {}", hex::encode(&buf_2), u64::from_le_bytes(buf_2));
+    println!(
+        "8-byte output from transcript 1: {:?} - encoded as u64: {}",
+        hex::encode(&buf),
+        u64::from_le_bytes(buf)
+    );
+    println!(
+        "8-byte output from transcript 2: {:?} - encoded as u64: {}",
+        hex::encode(&buf_2),
+        u64::from_le_bytes(buf_2)
+    );
     println!();
     println!("We see that both transcripts output equal 8 byte sequences and corresponding u64s");
     println!();
     println!("If desired, we can continue to extract equal outputs from each transcript like so:");
-    println!("16-byte output from transcript 1: {:?}, - encoded as u128: {}", hex::encode(&buf_3), u128::from_le_bytes(buf_3));
-    println!("16-byte output from transcript 1: {:?}, - encoded as u128: {}", hex::encode(&buf_4), u128::from_le_bytes(buf_3));
+    println!(
+        "16-byte output from transcript 1: {:?}, - encoded as u128: {}",
+        hex::encode(&buf_3),
+        u128::from_le_bytes(buf_3)
+    );
+    println!(
+        "16-byte output from transcript 1: {:?}, - encoded as u128: {}",
+        hex::encode(&buf_4),
+        u128::from_le_bytes(buf_3)
+    );
     println!();
     println!("If we add any further input that is NOT the same, the outputs will be different as we demonstrate below.");
     println!();
     println!("Data Ingested:");
-    println!("Transcript 1 - Domain Separator {} - Message {}", "'byte-string-messages'", "'a note'");
-    println!("Transcript 2 - Domain Separator {} - Message {}", "'byte-string-messages'", "'a different note'");
+    println!("Transcript 1 - Domain Separator: 'byte-string-messages' - Message: 'a note'");
+    println!("Transcript 2 - Domain Separator: 'a note' - Message: 'a different note'",);
     println!();
     println!("Output:");
-    println!("8-byte output from transcript 1: {:?} - encoded as u64: {}", hex::encode(&buf_5), u64::from_le_bytes(buf_5));
-    println!("8-byte output from transcript 2: {:?} - encoded as u64: {}", hex::encode(&buf_6), u64::from_le_bytes(buf_6));
+    println!(
+        "8-byte output from transcript 1: {:?} - encoded as u64: {}",
+        hex::encode(&buf_5),
+        u64::from_le_bytes(buf_5)
+    );
+    println!(
+        "8-byte output from transcript 2: {:?} - encoded as u64: {}",
+        hex::encode(&buf_6),
+        u64::from_le_bytes(buf_6)
+    );
     println!();
     println!("The deterministic property of Merlin Transcripts allows us to create 'transcript protocols'");
     println!("in which we design a canonical byte encodings and domain separators for proof objects such that");
