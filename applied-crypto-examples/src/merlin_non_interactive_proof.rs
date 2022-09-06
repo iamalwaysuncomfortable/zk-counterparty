@@ -69,9 +69,16 @@ impl SimpleSchnorrProof {
 
 /// An example of an interactive proof protocol implemented for Merlin Transcripts
 pub trait SimpleSchnorProofProtocol {
+    // Add proof domain separation
     fn proof_domain_separator(&mut self);
+
+    // Add a ristretto curve point to the transcript, most often this would be the bytes of a public key
     fn append_ristretto_point(&mut self, curve_point: &RistrettoPoint);
+
+    // Get a reproducible challenge scalar
     fn get_challenge_scalar(&mut self) -> Scalar;
+
+    // Get an rng based on the Merlin Transcript
     fn get_rng(&mut self, public_key: &RistrettoPoint) -> TranscriptRng;
 }
 
