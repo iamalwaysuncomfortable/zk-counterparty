@@ -1,3 +1,4 @@
+use crate::{generate_keypair, SimpleSchnorrProof};
 use merlin::Transcript;
 
 pub fn merlin_basics_tutorial() {
@@ -131,4 +132,22 @@ pub fn merlin_basics_tutorial() {
     println!();
     println!("Alternatively, by defining the same domain labels and byte encodings for objects we're concerned about");
     println!("we can define a consistent hashing scheme for all objects we find interesting.");
+}
+
+pub fn merlin_non_interactive_proof_tutorial() {
+    // This tutorial demonstrates the use of Merlin transcripts to create a non-interactive
+    // proof of knowledge of a discrete log. The transcript protocol is defined in the
+    // transcript_protocol() function below.
+
+    // We create a Merlin Transcript to use as a sponge for our proof.
+    let mut transcript = SimpleSchnorrProof::create_new_transcript();
+    let (private_key, public_key) = generate_keypair();
+    let proof = SimpleSchnorrProof::generate_proof(&private_key, &mut transcript);
+    let proof_pair = proof.get_proof_pair();
+
+    let mut verifier_transcript = SimpleSchnorrProof::create_new_transcript();
+    let mut verifier_proof = SimpleSchnorrProof::from(proof_pair);
+    if verifier_proof.verify_proof(&public_key, &mut verifier_transcript) {
+        println!("Success! The proof was verified.");
+    }
 }

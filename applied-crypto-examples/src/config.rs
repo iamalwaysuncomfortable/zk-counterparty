@@ -13,4 +13,5 @@ pub struct ConfigArgs {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum Tutorials {
     Merlin,
+    MerlinNonInteractiveProof,
 }
