@@ -136,8 +136,7 @@ pub fn merlin_basics_tutorial() {
 
 pub fn merlin_non_interactive_proof_tutorial() {
     // This tutorial demonstrates the use of Merlin transcripts to create a non-interactive
-    // proof of knowledge of a discrete log. The transcript protocol is defined in the
-    // transcript_protocol() function below.
+    // proof of knowledge of a private key.
 
     // We create a Merlin Transcript to use as a sponge for our proof.
     let mut transcript = SimpleSchnorrProof::create_new_transcript();
@@ -147,7 +146,11 @@ pub fn merlin_non_interactive_proof_tutorial() {
 
     let mut verifier_transcript = SimpleSchnorrProof::create_new_transcript();
     let mut verifier_proof = SimpleSchnorrProof::from(proof_pair);
-    if verifier_proof.verify_proof(&public_key, &mut verifier_transcript) {
-        println!("Success! The proof was verified.");
+    let result = verifier_proof.verify_proof(&public_key, &mut verifier_transcript);
+
+    if result.is_ok() {
+        println!("Proof verified!");
+    } else {
+        println!("Proof failed to verify!");
     }
 }
