@@ -6,31 +6,39 @@ use curve25519_dalek::{
 use merlin::{Transcript, TranscriptRng};
 
 /// This example uses a very simple Schnorr Signature scheme to prove knowledge of a private key.
-/// The proof demonstrated would not be suitable for production use as it is susceptible to well
-/// known attacks, but it demonstrates how to define a transcript protocol and subsequently use it
-/// to carry out a non-interactive proof.
+/// The proof demonstrated would not be suitable for production use as it is susceptible to known
+/// attacks, but it demonstrates how to define a transcript protocol and subsequently use it to
+/// perform out a non-interactive proof.
 
-/// In the proof, there are 2 parties the "prover" who owns the private key `k` and the "verifier"
-/// who verifies the "prover" owns the key. In the interactive case, the proof is as follows:
-/// 1. A generator point `G` is defined in the group the proof takes place in. This is often either
-/// an integer acting as a generator of a cyclic group or a point in an elliptic curve group. The
-/// public key `K` is defined as `K = kG`.
-/// 2. Prover chooses a random scalar `a` and computes `A = aG` and sends it to the verifier.
-/// 3. Verifier defines a challenge scalar `c` and sends it to the prover
-/// 4. Prover computes the response `r` as `r = a + c*k` and sends it to the verifier
-/// 5. Verifier computes `R = rG` and `R' = A + c*K` and if `R = R'`, the proof is valid
+/// In a proof of private key, there are 2 parties the "prover" who owns the private key `k` and the
+/// "verifier" who verifies the "prover" owns the key.
+///
+/// In the interactive case, the proof is as follows:
+/// 1. A generator point `G` is selected within the group used to perform the proof math. This is
+/// often either an integer within a cyclic group or a point in an elliptic curve group. The public
+/// key `K` is defined as `K = k*G`.
+/// 2. The Prover chooses a random scalar `a` and computes `A = a*G` and sends it to the verifier.
+/// 3. The Verifier defines a challenge scalar `c` and sends it to the prover
+/// 4. The Prover computes the response `r` as `r = a + c*k` and sends it to the verifier
+/// 5. The Verifier computes `R = r*G` and `R' = A + c*K` and if `R = R'`, the proof is valid
 ///
 /// Merlin Transcripts allow us to define a non-interactive version of this proof by allowing
 /// both parties to compute a deterministic challenge scalar `c`. To do this a transcript protocol
-/// that the verifier both agree on is defined including domain separators, an `append_proof_value()`
-/// function that serializes proof values into bytes in a canonical way and a `get_challenge()`
-/// which transforms the bytes into a scalar in a canonical way. After this is defined the proof
-/// works as follows:
-/// 1. Prover chooses a random scalar `a` and computes `A = aG` and absorbs `A` into a Merlin
+/// that the verifier both agree on is defined. To define a proof both the prover and the verifier
+/// would agree on a set of domain separators for different steps in the proof process and scheme
+/// for encoding all mathematical objects in the proof in a canonical way.
+///
+/// In the example below of a transcript protocol defined for non-interactive proofs, domain
+/// separators are created for different proof steps, and two crucial functions are defined:
+/// * `append_proof_value()`- a function that serializes proof values into bytes in a canonical
+/// * `get_challenge()` - a function that transforms the bytes into a scalar in a canonical way.
+///
+/// After this is defined the proof works as follows:
+/// 1. The Prover chooses a random scalar `a` and computes `A = aG` and absorbs `A` into a Merlin
 /// transcript `T` using `T.append_proof_value(A)`
 /// 2. Prover defines a scalar `c` using `T.get_challenge()` and computes the response `r`
 /// as `r = a + c*k` and publishes the proof pair (`A`, `r`)
-/// 3. Verifier gets the random scalar `c` defining a transcript `T'` and deriving `c` by falling
+/// 3. Verifier gets the random scalar `c` defining a transcript `T'` and deriving `c` by calling
 /// `T'.append_proof_value(A)` and `c = T'.get_challenge()`
 /// 4. Verifier computes `R = rG` and `R' = A + c*K` and if `R = R'`, the proof is valid
 ///
@@ -39,22 +47,23 @@ use merlin::{Transcript, TranscriptRng};
 /// uses the same transcript protocol can verify the verifier's published proof values without any
 /// interaction with the prover.
 
-// Below we define the transcript protocol for the Schnorr Signature proof system. In this
-// particular proof system, we will use elliptic curve points as the proof values.
-
 // TRANSCRIPT PROTOCOL DEFINITION
 // Transcript protocols are defined in 2 steps:
 // 1. Defining a list of domain separators for the proof that provers and verifiers agree on
 // 2. Defining a set of functions that serialize proof values into bytes in a canonical way
 //
-// Below we define these steps in order
+// These steps are defined below in order
 
 // PROOF CONSTANTS
+// The generator point `G` is selected from the Ristretto Elliptic Curve Group. Multiplying private
+// scalars within the prime field defined by 2^255 - 19 by this point results in another point
+// on the curve. An attacker would need to solve the discrete logarithm problem to find the original
+// scalar from the resulting point.
 const G: RistrettoPoint = RISTRETTO_BASEPOINT_POINT;
 
 // DOMAIN SEPARATORS
 // Domain separator for initializing a transcript
-const PROOF_DOMAIN_SEP: &[u8] = b"SIMPLE_PROOF";
+const PROOF_DOMAIN_SEP: &[u8] = b"NON_INTERACTIVE_PRIVATE_KEY_PROOF";
 
 // Domain separator for sinking challenge values into the transcript
 const PROOF_VALUE_DOMAIN_SEP: &[u8] = b"PROOF_VALUE";
@@ -70,14 +79,14 @@ const WITNESS_DOMAIN_SEP: &[u8] = b"WITNESS_BYTES";
 // To help in defining a canonical encoding of proof values, we define a trait which defines several
 // functions which encapsulate encoding our proof values into bytes in a canonical way.
 
-/// An example of an interactive proof protocol implemented for Merlin Transcripts
+/// An example of an non-interactive proof protocol implemented for Merlin Transcripts. These
+/// functions create an api which ensures that consistent domain separation and encodings are used
+/// every time a proof step is carried out. This encapsulation ensures that errors (and attacks
+/// resulting from them) are minimized and provides a consistent api for both the prover and the
+/// verifier to carry out a consistent non-interactive proof protocol.
 pub trait SimpleSchnorProofProtocol {
-    /// Add a domain separator to the transcript for the entire proof, meant to be called at the
-    /// beginning of a proof
-    fn proof_domain_separator(&mut self);
-
-    /// Encode a Ristretto curve point used in the proof into bytes in a canonical way and append it
-    /// to the transcript
+    /// Compress a curve point into the Ristretto group, transform the point into bytes in a
+    /// canonical way and append it to the transcript
     fn append_proof_value(&mut self, curve_point: &RistrettoPoint);
 
     /// Get a reproducible challenge scalar from the transcript
@@ -88,10 +97,6 @@ pub trait SimpleSchnorProofProtocol {
 }
 
 impl SimpleSchnorProofProtocol for Transcript {
-    fn proof_domain_separator(&mut self) {
-        self.append_message(b"DOMAIN_SEP", PROOF_DOMAIN_SEP);
-    }
-
     fn append_proof_value(&mut self, curve_point: &RistrettoPoint) {
         self.append_message(PROOF_VALUE_DOMAIN_SEP, curve_point.compress().as_bytes());
     }
@@ -109,8 +114,8 @@ impl SimpleSchnorProofProtocol for Transcript {
     }
 }
 
-/// Object implementing basic Schnorr Proof. This object holds the public proof values `A` and `r`
-/// and provides public functions generate and verify the proof values.
+/// Object implementing a basic Schnorr Proof of private key. This object holds the public proof
+/// values `A` and `r` and provides public functions to generate and verify the proof values.
 #[derive(Clone, Copy, Debug)]
 pub struct SimpleSchnorrProof {
     response: Scalar,
@@ -181,14 +186,60 @@ impl SimpleSchnorrProof {
     pub fn get_proof_pair(&self) -> (Scalar, RistrettoPoint) {
         (self.response, self.public_scalar)
     }
+
+    /// Get a newly initialized proof object
+    pub fn create_new_transcript() -> Transcript {
+        Transcript::new(PROOF_DOMAIN_SEP)
+    }
 }
 
-/// Create a proof object from published prover values
+/// Create a proof object from a pair of published prover values
 impl From<(Scalar, RistrettoPoint)> for SimpleSchnorrProof {
     fn from(proof_pair: (Scalar, RistrettoPoint)) -> Self {
         Self {
             response: proof_pair.0,
             public_scalar: proof_pair.1,
         }
+    }
+}
+
+/// Generate a sample private key for use within the proof
+pub(crate) fn generate_keypair() -> (Scalar, RistrettoPoint) {
+    let private_key = Scalar::random(&mut rand::rngs::OsRng);
+    let public_key = private_key * G;
+    (private_key, public_key)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_schnorr_proof_succeeds() {
+        // PROVER STEPS
+        // Initialize a transcript with a domain separator indicating the proof purpose
+        let mut transcript = SimpleSchnorrProof::create_new_transcript();
+
+        // Generate a public/private key pair
+        let (private_key, public_key) = generate_keypair();
+
+        // Generate non-interactive proof values and store them in a proof object
+        let proof = SimpleSchnorrProof::generate_proof(&private_key, &mut transcript);
+
+        // Get proof pair data
+        let proof_pair = proof.get_proof_pair();
+
+        // VERIFIER STEPS
+        // Initialize the verifier transcript with the same domain separator
+        let mut verifier_transcript = SimpleSchnorrProof::create_new_transcript();
+
+        // Create a proof object from the proof data published by the prover
+        let mut verifier_proof = SimpleSchnorrProof::from(proof_pair);
+
+        // Perform the non-interactive verification steps of the proof
+        let result = verifier_proof.verify_proof(&public_key, &mut verifier_transcript);
+
+        // Assert that the proof verification succeeded
+        assert!(result.is_ok());
     }
 }

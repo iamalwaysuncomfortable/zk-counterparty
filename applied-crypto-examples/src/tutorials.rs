@@ -1,3 +1,4 @@
+use crate::{generate_keypair, SimpleSchnorrProof};
 use merlin::Transcript;
 
 pub fn merlin_basics_tutorial() {
@@ -131,4 +132,39 @@ pub fn merlin_basics_tutorial() {
     println!();
     println!("Alternatively, by defining the same domain labels and byte encodings for objects we're concerned about");
     println!("we can define a consistent hashing scheme for all objects we find interesting.");
+}
+
+pub fn merlin_non_interactive_proof_tutorial() {
+    // This tutorial demonstrates the use of Merlin transcripts to create a non-interactive
+    // proof of knowledge of a private key.
+
+    // PROVER STEPS
+    // Initialize a transcript with a domain separator indicating the proof purpose
+    let mut transcript = SimpleSchnorrProof::create_new_transcript();
+
+    // Generate a public/private key pair
+    let (private_key, public_key) = generate_keypair();
+
+    // Generate non-interactive proof values and store them in a proof object
+    let proof = SimpleSchnorrProof::generate_proof(&private_key, &mut transcript);
+
+    // Get proof pair data
+    let proof_pair = proof.get_proof_pair();
+
+    // VERIFIER STEPS
+    // Initialize the verifier transcript with the same domain separator
+    let mut verifier_transcript = SimpleSchnorrProof::create_new_transcript();
+
+    // Create a proof object from the proof data published by the prover
+    let mut verifier_proof = SimpleSchnorrProof::from(proof_pair);
+
+    // Perform the non-interactive verification steps of the proof
+    let result = verifier_proof.verify_proof(&public_key, &mut verifier_transcript);
+
+    // Assert that the proof verification succeeded
+    if result.is_ok() {
+        println!("Proof verified!");
+    } else {
+        println!("Proof failed to verify!");
+    }
 }
