@@ -32,6 +32,8 @@ impl UnencryptedChallengeResponse {
 pub enum Error {
     /// Proposed roots would result in a polynomial with coefficients in the rational field
     OutsideIntegerField(i64, i64),
+    /// No public roots set
+    NoPublicRoots,
 }
 
 impl Root {
@@ -65,6 +67,7 @@ impl Polynomial {
         }
     }
 
+    /// Set public roots for the polynomial
     pub fn set_public_roots(mut self, num_public: usize) -> Self {
         self.public_roots = self.roots[0..num_public].to_vec();
         self
@@ -76,8 +79,11 @@ impl Polynomial {
     }
 
     /// Create public polynomial from private polynomial
-    pub fn get_public_polynomial(&self) -> Polynomial {
-        Polynomial::new(self.public_roots.clone())
+    pub fn get_public_polynomial(&self) -> Result<Polynomial, Error> {
+        if self.public_roots.is_empty() {
+            return Err(Error::NoPublicRoots);
+        }
+        Ok(Polynomial::new(self.public_roots.clone()))
     }
 
     /// Evaluate polynomial at a given point
@@ -127,7 +133,7 @@ mod tests {
             Root::new(2, 4).unwrap(),
         ];
         let polynomial = Polynomial::new(roots).set_public_roots(2);
-        let challenge_polynomial = polynomial.get_public_polynomial();
+        let challenge_polynomial = polynomial.get_public_polynomial().unwrap();
 
         let challenge_one = 40;
         let challenge_two = 100;
