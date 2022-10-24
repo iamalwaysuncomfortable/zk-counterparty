@@ -9,15 +9,16 @@ pub struct Root {
     b: i64,
 }
 
+/// Unencrypted challenge response pair
 #[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
-pub struct ChallengeResponse {
+pub struct UnencryptedChallengeResponse {
     // p(x) = h(x)*t(x)
     px: i64,
     // h(x)
     hx: i64,
 }
 
-impl ChallengeResponse {
+impl UnencryptedChallengeResponse {
     pub fn new(px: i64, hx: i64) -> Self {
         Self { px, hx }
     }
@@ -51,8 +52,6 @@ impl Root {
 pub struct Polynomial {
     // Polynomial roots (a, b) such that a*x + b is a factor of the polynomial
     roots: Vec<Root>,
-    // Polynomial coefficients
-    coefficients: Vec<i64>,
     // public roots
     public_roots: Vec<Root>,
 }
@@ -60,24 +59,8 @@ pub struct Polynomial {
 impl Polynomial {
     /// Create a new polynomial from a list of roots
     pub fn new(roots: Vec<Root>) -> Self {
-        let mut coefficients = Vec::new();
-        for root in roots.iter() {
-            if coefficients.is_empty() {
-                coefficients.push(root.a);
-                coefficients.push(root.b);
-            } else {
-                let mut new_coefficients = Vec::new();
-                new_coefficients.push(coefficients[0] * root.a);
-                for i in 1..coefficients.len() {
-                    new_coefficients.push(coefficients[i - 1] * root.b + coefficients[i] * root.a);
-                }
-                new_coefficients.push(coefficients[coefficients.len() - 1] * root.b);
-                coefficients = new_coefficients;
-            }
-        }
         Self {
             roots,
-            coefficients,
             public_roots: Vec::new(),
         }
     }
@@ -92,11 +75,6 @@ impl Polynomial {
         self.roots.len()
     }
 
-    /// Get coefficients of polynomial
-    pub fn coefficients(&self) -> Vec<i64> {
-        self.coefficients.clone()
-    }
-
     /// Create public polynomial from private polynomial
     pub fn get_public_polynomial(&self) -> Polynomial {
         Polynomial::new(self.public_roots.clone())
@@ -107,32 +85,20 @@ impl Polynomial {
         self.roots.iter().fold(1, |acc, root| acc * root.eval(x))
     }
 
-    pub fn answer_challenge(&self, x: i64) -> ChallengeResponse {
+    pub fn answer_challenge(&self, x: i64) -> UnencryptedChallengeResponse {
         let px = self.eval(x);
         let tx = self
             .public_roots
             .iter()
             .fold(1, |acc, root| acc * root.eval(x));
         let hx = px / tx;
-        ChallengeResponse::new(px, hx)
+        UnencryptedChallengeResponse::new(px, hx)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_polynomial_creation_creates_correct_coefficients() {
-        let roots = vec![
-            Root::new(1, 2).unwrap(),
-            Root::new(3, 6).unwrap(),
-            Root::new(2, 4).unwrap(),
-        ];
-        let polynomial = Polynomial::new(roots);
-        assert_eq!(polynomial.degree(), 3);
-        assert_eq!(polynomial.coefficients, vec![6, 36, 72, 48]);
-    }
 
     #[test]
     fn test_polynomial_roots_must_divide() {
