@@ -2,8 +2,8 @@ mod config;
 mod merlin_non_interactive_proof;
 mod tutorials;
 
-pub mod zksnark;
 pub mod encrypted_zksnark;
+pub mod zksnark;
 
 pub use crate::{
     config::{ConfigArgs, Tutorials},
