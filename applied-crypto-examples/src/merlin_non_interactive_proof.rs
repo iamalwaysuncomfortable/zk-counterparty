@@ -3,6 +3,7 @@
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_POINT, ristretto::RistrettoPoint, scalar::Scalar,
 };
+
 use merlin::{Transcript, TranscriptRng};
 
 /// This example uses a very simple Schnorr Signature scheme to prove knowledge of a private key.
@@ -84,7 +85,7 @@ const WITNESS_DOMAIN_SEP: &[u8] = b"WITNESS_BYTES";
 /// every time a proof step is carried out. This encapsulation ensures that errors (and attacks
 /// resulting from them) are minimized and provides a consistent api for both the prover and the
 /// verifier to carry out a consistent non-interactive proof protocol.
-pub trait SimpleSchnorProofProtocol {
+pub trait SimpleProofProtocol {
     /// Compress a curve point into the Ristretto group, transform the point into bytes in a
     /// canonical way and append it to the transcript
     fn append_proof_value(&mut self, curve_point: &RistrettoPoint);
@@ -96,7 +97,7 @@ pub trait SimpleSchnorProofProtocol {
     fn get_rng(&mut self, public_key: &RistrettoPoint) -> TranscriptRng;
 }
 
-impl SimpleSchnorProofProtocol for Transcript {
+impl SimpleProofProtocol for Transcript {
     fn append_proof_value(&mut self, curve_point: &RistrettoPoint) {
         self.append_message(PROOF_VALUE_DOMAIN_SEP, curve_point.compress().as_bytes());
     }
