@@ -3,10 +3,11 @@ mod merlin_non_interactive_proof;
 mod tutorials;
 
 pub mod zksnark;
+pub mod encrypted_zksnark;
 
 pub use crate::{
     config::{ConfigArgs, Tutorials},
-    merlin_non_interactive_proof::{Error, SimpleSchnorrProof},
+    merlin_non_interactive_proof::{Error, SimpleProofProtocol, SimpleSchnorrProof},
     tutorials::{merlin_basics_tutorial, merlin_non_interactive_proof_tutorial},
 };
 
