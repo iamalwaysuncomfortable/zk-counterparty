@@ -92,17 +92,19 @@ impl EncryptedResponse {
 pub enum Error {
     /// Proposed roots would result in a polynomial with coefficients in the rational field
     OutsideIntegerField(i64, i64),
-    /// No public roots set
-    NoPublicRoots,
+    /// Either no public roots were set, or all roots were set to public
+    InvalidPublicRoots(usize),
 }
 
-/// Polynomial with coefficients restricted to integers within the field of 8-bit signed integers
+/// Polynomial with coefficients in the field of 2^255-19 which prover can prove knowledge of
 #[derive(Clone, Debug)]
 pub struct Polynomial {
     // Polynomial roots (a, b) such that a*x + b is a factor of the polynomial
     roots: Vec<Root>,
     // Polynomial coefficients
     coefficients: Vec<Scalar>,
+    // Hidden polynomial coefficients (defined by h(x) = p(x)/t(x))
+    hidden_coefficients: Vec<Scalar>,
     // Number of public roots
     num_public_roots: usize,
 }
@@ -110,9 +112,21 @@ pub struct Polynomial {
 impl Polynomial {
     /// Create a new polynomial from a list of roots
     pub fn new(roots: Vec<Root>, num_public_roots: usize) -> Result<Self, Error> {
-        if num_public_roots == 0 {
-            return Err(Error::NoPublicRoots);
+        if num_public_roots == 0 || num_public_roots == roots.len() {
+            return Err(Error::InvalidPublicRoots(num_public_roots));
         }
+        let coefficients = Self::combine_roots(&roots[..]);
+        let hidden_coefficients = Self::combine_roots(&roots[num_public_roots..]);
+        Ok(Self {
+            roots,
+            coefficients,
+            hidden_coefficients,
+            num_public_roots,
+        })
+    }
+
+    // Combine polynomial roots into coefficients
+    fn combine_roots(roots: &[Root]) -> Vec<Scalar> {
         let mut coefficients = Vec::new();
         for root in roots.iter() {
             if coefficients.is_empty() {
@@ -127,14 +141,9 @@ impl Polynomial {
                 new_coefficients.push(coefficients[coefficients.len() - 1] * root.b);
                 coefficients = new_coefficients;
             }
-            //println!("coefficients: {:?}", coefficients);
         }
         coefficients.reverse();
-        Ok(Self {
-            roots,
-            coefficients,
-            num_public_roots,
-        })
+        coefficients
     }
 
     /// Get degree of polynomial
@@ -144,23 +153,22 @@ impl Polynomial {
 
     /// calculate encrypted polynomial
     pub fn generate_response(&self, powers: &EncryptedChallenge) -> EncryptedResponse {
-        let px = self.eval(powers);
-        let h = Polynomial::new(self.roots[self.num_public_roots..].to_vec(), 1).unwrap();
-        let hx = h.eval(powers);
+        let px = self.eval(powers, &self.coefficients);
+        let hx = self.eval(powers, &self.hidden_coefficients);
         EncryptedResponse::new(px, hx)
     }
 
     /// Evaluate polynomial at given encrypted powers
-    pub fn eval(&self, powers: &EncryptedChallenge) -> RistrettoPoint {
+    fn eval(&self, powers: &EncryptedChallenge, coefficients: &Vec<Scalar>) -> RistrettoPoint {
         powers
             .encrypted_powers
             .iter()
-            .zip(self.coefficients.iter())
+            .zip(coefficients.iter())
             .map(|(p, c)| p * c)
             .sum()
     }
 
-    /// Create public polynomial from private polynomial
+    /// Evaluate public polynomial at given scalar
     pub fn eval_public_polynomial(&self, scalar: &Scalar) -> Scalar {
         self.roots[0..self.num_public_roots]
             .to_vec()
@@ -191,6 +199,8 @@ mod tests {
         let polynomial = Polynomial::new(roots, 2).unwrap();
         let scalar = Scalar::from(5u64);
         let powers = EncryptedChallenge::new(&scalar, &polynomial);
+
+        // Check encrypted powers match expected curve points
         assert_eq!(powers.encrypted_powers.len(), 6);
         assert_eq!(powers.encrypted_powers[0], G);
         assert_eq!(powers.encrypted_powers[1], Scalar::from(5u64) * G);
@@ -211,9 +221,11 @@ mod tests {
         let polynomial = Polynomial::new(roots, 2).unwrap();
         let scalar = Scalar::from(5u64);
         let challenge = EncryptedChallenge::new(&scalar, &polynomial);
+        let response = polynomial.generate_response(&challenge);
 
+        // Check encrypted polynomial evaluates to expected curve point
         assert_eq!(polynomial.degree(), 3);
-        assert_eq!(polynomial.eval(&challenge), Scalar::from(2058u64) * G);
+        assert_eq!(response.px, Scalar::from(2058u64) * G);
     }
 
     #[test]
@@ -246,6 +258,7 @@ mod tests {
         let response3 = polynomial.generate_response(&challenge3);
         let response4 = polynomial2.generate_response(&challenge4);
 
+        // Check that response from prover matches
         assert!(challenge.verify_response(&response));
         assert!(challenge2.verify_response(&response2));
         assert!(challenge3.verify_response(&response3));
