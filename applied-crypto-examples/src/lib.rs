@@ -3,6 +3,7 @@ mod merlin_non_interactive_proof;
 mod tutorials;
 
 pub mod encrypted_zksnark;
+pub mod fully_encrypted_zksnark;
 pub mod zksnark;
 
 pub use crate::{

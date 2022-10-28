@@ -159,7 +159,7 @@ impl Polynomial {
     }
 
     /// Evaluate polynomial at given encrypted powers
-    fn eval(&self, powers: &EncryptedChallenge, coefficients: &Vec<Scalar>) -> RistrettoPoint {
+    fn eval(&self, powers: &EncryptedChallenge, coefficients: &[Scalar]) -> RistrettoPoint {
         powers
             .encrypted_powers
             .iter()
