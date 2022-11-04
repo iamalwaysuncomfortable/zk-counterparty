@@ -145,7 +145,7 @@ impl SimpleSchnorrProof {
         let public_scalar = random_scalar * G;
         proof_transcript.append_proof_value(&public_scalar);
 
-        // Generate the challenge scalar using the merlin transcript which the prover can later
+        // Generate the challenge scalar using the merlin-example transcript which the prover can later
         // reproduce and define the reesponse
         let challenge_scalar = proof_transcript.get_challenge();
         let response = random_scalar + private_key * challenge_scalar;

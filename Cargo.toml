@@ -1,2 +1,7 @@
 [workspace]
-members = [ "applied-crypto-examples" ]
+
+members = [
+    "applied-crypto-examples",
+    "applied-crypto-examples/merlin-example",
+    "applied-crypto-examples/zksnarks-example",
+]

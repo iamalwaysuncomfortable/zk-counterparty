@@ -59,7 +59,7 @@ pub fn merlin_basics_tutorial() {
     transcript_one.challenge_bytes(b"extraction", &mut buf_3);
     transcript_two.challenge_bytes(b"extraction", &mut buf_4);
 
-    // However, if we give the merlin transcripts different outputs to absorb, the outputs
+    // However, if we give the merlin-example transcripts different outputs to absorb, the outputs
     // of the two transcriptions will diverge.
     let mut buf_5 = [0; 8];
     let mut buf_6 = [0; 8];
@@ -70,7 +70,7 @@ pub fn merlin_basics_tutorial() {
 
     // Executable part of the tutorial
     println!();
-    println!("This tutorial demonstrates the basic usage of merlin transcripts.");
+    println!("This tutorial demonstrates the basic usage of merlin-example transcripts.");
     println!("We create two Merlin Transcripts 'absorb' the following data into both transcripts");
     println!("using the 'append_message' and 'append_u64' methods");
     println!();
