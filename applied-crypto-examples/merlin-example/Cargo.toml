@@ -1,5 +1,6 @@
 [package]
 name = "merlin-example"
+authors = ["Michael Turner"]
 version = "0.1.0"
 edition = "2021"
 

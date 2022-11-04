@@ -1,4 +1,5 @@
-//! An example of naive implementations of zksnarks-example for tutorial purposes
+//! Implementation of Polynomials used for zksnarks
+
 use crate::{
     encrypted_zksnark::{Challenge, ProverResponse},
     error::Error,
@@ -7,7 +8,7 @@ use crate::{
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 
 /// Single root of a polynomial
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct Root {
     // a in ax+b
     a: Scalar,
@@ -45,7 +46,7 @@ impl TryFrom<(i64, i64)> for Root {
 }
 
 /// Single root of a polynomial
-#[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct SimpleRoot {
     // a in ax+b
     a: i64,
@@ -54,6 +55,7 @@ pub struct SimpleRoot {
 }
 
 impl SimpleRoot {
+    /// Create new root
     pub fn new(a: i64, b: i64) -> Result<Self, Error> {
         if b % a == 0 {
             return Ok(Self { a, b });
@@ -61,14 +63,15 @@ impl SimpleRoot {
         Err(Error::OutsideIntegerField(a, b))
     }
 
+    /// Evaluate a polynomial root
     pub fn eval(&self, x: i64) -> i64 {
         self.a * x + self.b
     }
 }
 
-/// Polynomial with coefficients in the field of 2^255-19 the prover must prove
-/// knowledge of
-#[derive(Clone, Debug)]
+/// Polynomial with coefficients (in the finite field of integers order 2^255-19)
+/// the prover must prove knowledge of
+#[derive(Clone)]
 pub struct Polynomial {
     // Polynomial roots (a, b) such that a*x + b is a factor of the polynomial
     roots: Vec<Root>,
@@ -117,13 +120,14 @@ impl Polynomial {
         coefficients
     }
 
-    /// Get degree of polynomial
+    /// Degree of the polynomial
     pub fn degree(&self) -> usize {
         self.roots.len()
     }
 
-    /// Take a verifier challenge and evaluate the polynomial at the encrypted and
-    /// shifted powers (in form of <s, s^2, .., s^n>) within the challenge
+    /// Take a verifier challenge and evaluate the polynomial at the encrypted and shifted
+    /// powers (in form of <s, s^2, .., s^n> and <shift*s, shift*s^2, .., shift*s^n>
+    /// respectively)
     pub fn generate_response(&self, challenge: &Challenge) -> ProverResponse {
         // Generate random scalar in order to encrypt the evaluation of the polynomial
         let b = Scalar::random(&mut rand::thread_rng());
@@ -171,7 +175,7 @@ impl Polynomial {
 }
 
 /// Polynomial with coefficients restricted to integers within the field of 8-bit signed integers
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UnencryptedPolynomial {
     // Polynomial roots (a, b) such that a*x + b is a factor of the polynomial
     roots: Vec<SimpleRoot>,
@@ -212,6 +216,7 @@ impl UnencryptedPolynomial {
         self.roots.iter().fold(1, |acc, root| acc * root.eval(x))
     }
 
+    /// Given a challenge point, evaluate polynomials h(x) and p(x) at the challenge point
     pub fn answer_challenge(&self, x: i64) -> UnencryptedChallengeResponse {
         let px = self.eval(x);
         let tx = self
@@ -229,15 +234,12 @@ mod tests {
 
     #[test]
     fn test_polynomial_simple_roots_must_divide() {
-        assert_eq!(SimpleRoot::new(2, 1), Err(Error::OutsideIntegerField(2, 1)));
+        assert_eq!(SimpleRoot::new(2, 1).err().unwrap(), Error::OutsideIntegerField(2, 1));
     }
 
     #[test]
     fn test_polynomial_roots_must_divide() {
-        assert_eq!(
-            Root::try_from((2i64, 1i64)),
-            Err(Error::OutsideIntegerField(2, 1))
-        );
+        assert_eq!(Root::try_from((2i64, 1i64)).err().unwrap(), Error::OutsideIntegerField(2, 1));
     }
 
     #[test]

@@ -1,3 +1,5 @@
+//! Errors in zksnarks
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     /// Proposed roots would result in a polynomial with coefficients in the rational field

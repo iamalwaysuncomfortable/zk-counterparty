@@ -1,4 +1,5 @@
-//! An example of naive implementations of zksnarks-example for tutorial purposes
+//! An example of ZkSnarks math for demonstration purposes, not intended for production use
+
 use crate::{
     error::Error,
     polynomial::Polynomial,
@@ -11,6 +12,7 @@ const G: RistrettoPoint = RISTRETTO_BASEPOINT_POINT;
 
 /// Provers calculated curve points created by multiplying the polynomial coefficient
 /// scalars by the challenge curve points
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProverResponse {
     /// Evaluation of all polynomial coefficients at the challenge curve points
     pub(crate) px: RistrettoPoint,
@@ -28,6 +30,7 @@ impl ProverResponse {
 }
 
 /// Verifier challenge
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Challenge {
     /// List of Ristretto curve points created by multiplying the secret scalar by the
     /// Ristretto basepoint
@@ -65,6 +68,7 @@ impl Challenge {
 /// currently is an interactive proof and is not yet verifiable by third parties.
 /// This object provides the functionality for a single verifier to check that the
 /// prover's response to the initially provided challenge values is correct.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SnarkProofTranscript {
     // Object containing vector of Ristretto curve points created by multiplying
     // the secret scalar, and the shift of the secret scalar by the Ristretto
@@ -160,6 +164,8 @@ impl Verifier {
             return Err(Error::ProofAlreadyVerified);
         }
         let (ts, shift) = (self.ts.take().unwrap(), self.shift.take().unwrap());
+
+        // Multiply stored scalars by the prover's curve points
         let cofactors_verification = ts * prover_response.hx;
         let power_verification = shift * prover_response.px;
         Ok(SnarkProofTranscript {
@@ -189,7 +195,6 @@ pub fn trusted_setup(target_polynomial: &Polynomial) -> (Verifier, Challenge) {
 mod tests {
     use super::*;
     use crate::Root;
-
 
     #[test]
     fn test_encrypted_powers_calculate_correctly() {
@@ -239,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn test_encrypted_proof() {
+    fn test_encrypted_proof_is_correct_and_cant_be_performed_twice() {
         let roots = vec![
             Root::try_from((1, 2)).unwrap(),
             Root::try_from((3, 6)).unwrap(),
@@ -251,7 +256,14 @@ mod tests {
         let polynomial = Polynomial::new(roots, 2).unwrap();
         let (mut verifier, challenge) = trusted_setup(&polynomial);
         let prover_response = polynomial.generate_response(&challenge);
+
+        let challenge2 = challenge.clone();
+        let prover_response2 = polynomial.generate_response(&challenge2);
+
         let proof = verifier.verify_proof(prover_response, challenge).unwrap();
+        let proof2 = verifier.verify_proof(prover_response2, challenge2);
+        assert_eq!(proof2, Err(Error::ProofAlreadyVerified));
         assert!(proof.proof_is_valid());
+        println!("{:?}", proof);
     }
 }

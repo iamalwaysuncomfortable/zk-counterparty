@@ -1,4 +1,5 @@
-//! An example of naive implementations of zksnarks-example for tutorial purposes
+//! Simple demonstration of the basic polynomial math behind ZkSnarks
+
 use crate::polynomial::UnencryptedPolynomial;
 
 /// Unencrypted challenge response pair
@@ -11,10 +12,12 @@ pub struct UnencryptedChallengeResponse {
 }
 
 impl UnencryptedChallengeResponse {
+    /// Create new challenge response
     pub fn new(px: i64, hx: i64) -> Self {
         Self { px, hx }
     }
 
+    /// Verify the challenge values provided by the prover match!
     pub fn verify(&self, x: i64, polynomial: &UnencryptedPolynomial) -> bool {
         self.px == self.hx * polynomial.eval(x)
     }
