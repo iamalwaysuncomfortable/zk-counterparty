@@ -1,5 +1,6 @@
 [package]
 name = "applied-crypto-examples"
+authors = ["Michael Turner"]
 version = "0.1.0"
 edition = "2021"
 
@@ -9,7 +10,4 @@ path = "src/bin/tutorial.rs"
 
 [dependencies]
 clap = { version = "3.2.19", features = ["derive"] }
-curve25519-dalek = "4.0.0-pre.2"
-hex = "0.4.3"
-merlin = "3.0.0"
-rand = "0.8.5"
+merlin-example = { path = "merlin-example" }

@@ -1,0 +1,11 @@
+[package]
+name = "merlin-example"
+authors = ["Michael Turner"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+curve25519-dalek = "4.0.0-pre.2"
+hex = "0.4.3"
+merlin = "3.0.0"
+rand = "0.8.5"
