@@ -31,7 +31,7 @@ impl ProverTranscript {
 
     /// Get prover's evaluation of the polynomial at the challenge points and shifted
     /// challenge points. All points returned are in the BLS12-381 prime subgroup over
-    /// a 381-bit prime field represented by the `G1Affine` struct
+    /// a 381-bit prime field represented by the [`G1Affine`]
     ///
     /// # Returns
     /// A tuple of the form ([`p(s)`](G1Affine), [`p(s_shifted)`](G1Affine), [`h(s)`](G1Affine)) where
@@ -110,12 +110,12 @@ impl VerifierTranscript {
     /// Get encrypted powers calculated from the prover's polynomial
     ///
     /// # Returns
-    /// A tuple of the form ([`encrypted_powers`](Vec<G1Projective>), [`shifted_powers`](Vec<G1Projective>))
-    /// `encrypted_powers` is a list `G1Projective` curve curve points created by multiplying
-    /// exponents of a secret scalar up to the degree of the prover's claimed polynomial by the
-    /// generator of the BLS12-381 prime subgroup over a 381-bit prime field
-    /// `shifted_powers` is calculated in the same manner, but includes a multiplication of the
-    /// secret shift scalar
+    /// A tuple of the form (encrypted_powers, shifted_powers)
+    /// `encrypted_powers` is a vector of `G1Projective` curve points created by multiplying
+    /// exponents of a secret scalar up to the degree of the prover's claimed polynomial by
+    /// the generator of the BLS12-381 prime subgroup over a 381-bit prime field
+    /// `shifted_powers` is calculated in the same manner, but includes a multiplication of
+    /// secret shift scalar to enforce usage of the
     pub fn get_encrypted_powers(&self) -> (&Vec<G1Projective>, &Vec<G1Projective>) {
         (&self.encrypted_powers, &self.shifted_powers)
     }

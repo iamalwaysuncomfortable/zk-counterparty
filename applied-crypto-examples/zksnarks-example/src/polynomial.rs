@@ -123,13 +123,23 @@ impl Polynomial {
         self.roots.len()
     }
 
-    /// Take a verifier challenge and evaluate the polynomial at the encrypted and shifted
-    /// powers (in form of <s, s^2, .., s^n> and <shift*s, shift*s^2, .., shift*s^n>
-    /// respectively)
-    pub fn generate_response(&self, challenge: &VerifierTranscript) -> ProverTranscript {
+    /// Take the [`verifier_transcript`](VerifierTranscript) and evaluate the polynomial
+    /// at the encrypted and shifted powers of the secret scalar.
+    ///
+    /// The verifier's are curve points calculated as <G1*s, G1*s^2, .., G1*s^n> and
+    /// <G1*shift*s, G1*shift*s^2, .., G1*shift*s^n> respectively) where G1 is the BLS12-381
+    /// prime subgroup generator point over the prime field, s is the secret challenge scalar
+    /// chosen by the verifier, and shift is a random scalar chosen by the prover to enforce
+    /// that the polynomial is evaluated at the prover's claimed powers.
+    ///
+    /// # Returns
+    /// ['ProverTranscript'] containing the polynomial evaluation at the encrypted and shifted
+    /// powers done by multiplying the coefficients of the polynomial by the challenge values
+    /// (i.e. <a1*P1, a2*P2, .., an*Pn>
+    pub fn generate_response(&self, verifier_transcript: &VerifierTranscript) -> ProverTranscript {
         // Generate random scalar in order to encrypt the evaluation of the polynomial
         let b = Scalar::random(&mut rand::thread_rng());
-        let (encrypted_powers, shifted_powers) = challenge.get_encrypted_powers();
+        let (encrypted_powers, shifted_powers) = verifier_transcript.get_encrypted_powers();
 
         // Evaluate p(s) = t(s) * h(s) at the encrypted scalars sent by the verifier
         let px_eval = self.eval(encrypted_powers, &self.coefficients, &b).into();
@@ -144,14 +154,10 @@ impl Polynomial {
         ProverTranscript::new(px_eval, px_shift_eval, hx_eval)
     }
 
-    // Evaluate polynomial at given encrypted powers. The powers provided to this function
-    // are in the form of s*G, s^2*G, .., s^n*G where s is a scalar raised to powers and then
-    // encrypted by multiplication of the curve generator point G. The result is curve points
-    // e1, e2, .., en. To evaluate the polynomial, the scalar polynomial coefficients
-    // a1, a2, .., an are multiplied by a blinding scalar `b` and then multiplied by the powers
-    // represented by the resulting curve points. The multiplication takes the form of
-    // (a1*b)*e1 + (a2*b)*e2 + .. + (an*b)*en and constitutes the proof response which proves
-    // knowledge of the polynomial coefficients.
+    // To evaluate the polynomial, scalar polynomial coefficients and a blinding scalar `b
+    // are multiplied by the curve points PS_1, PS_2, .., PS_n representing repeated
+    // addition of each curve point. The curve points are then summed together to complete
+    // the polynomial evaluation
     fn eval(
         &self,
         powers: &[G1Projective],
