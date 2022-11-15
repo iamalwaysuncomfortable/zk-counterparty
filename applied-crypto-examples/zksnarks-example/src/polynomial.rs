@@ -1,25 +1,24 @@
-//! Implementation of Polynomials used for zksnarks
+//! Implementation of Polynomials used for ZkSnarks
 
 use crate::{
-    encrypted_zksnark::{Challenge, ProverResponse},
+    encrypted_zksnark::{ProverTranscript, VerifierTranscript},
     error::Error,
     unencrypted_zksnark::UnencryptedChallengeResponse,
 };
-use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
+use bls12_381::{G1Projective, Scalar};
+use ff::Field;
 
-/// Single root of a polynomial
+/// Root with coefficients in the 381-bit prime field used by curve BLS12-381
 #[derive(Clone)]
 pub struct Root {
-    // a in ax+b
-    a: Scalar,
-    // b in ax+b
-    b: Scalar,
+    pub a: Scalar,
+    pub b: Scalar,
 }
 
 impl Root {
     /// Evaluate the root at a given scalar
     pub fn eval(&self, x: &Scalar) -> Scalar {
-        self.a * x + self.b
+        x * self.a + self.b
     }
 }
 
@@ -69,8 +68,7 @@ impl SimpleRoot {
     }
 }
 
-/// Polynomial with coefficients (in the finite field of integers order 2^255-19)
-/// the prover must prove knowledge of
+/// Polynomial with coefficients in the 381-bit prime field used by curve BLS12-381
 #[derive(Clone)]
 pub struct Polynomial {
     // Polynomial roots (a, b) such that a*x + b is a factor of the polynomial
@@ -125,39 +123,47 @@ impl Polynomial {
         self.roots.len()
     }
 
-    /// Take a verifier challenge and evaluate the polynomial at the encrypted and shifted
-    /// powers (in form of <s, s^2, .., s^n> and <shift*s, shift*s^2, .., shift*s^n>
-    /// respectively)
-    pub fn generate_response(&self, challenge: &Challenge) -> ProverResponse {
+    /// Take the [`verifier_transcript`](VerifierTranscript) and evaluate the polynomial
+    /// at the encrypted and shifted powers of the secret scalar.
+    ///
+    /// The verifier's are curve points calculated as <G1*s, G1*s^2, .., G1*s^n> and
+    /// <G1*shift*s, G1*shift*s^2, .., G1*shift*s^n> respectively) where G1 is the BLS12-381
+    /// prime subgroup generator point over the prime field, s is the secret challenge scalar
+    /// chosen by the verifier, and shift is a random scalar chosen by the prover to enforce
+    /// that the polynomial is evaluated at the prover's claimed powers.
+    ///
+    /// # Returns
+    /// ['ProverTranscript'] containing the polynomial evaluation at the encrypted and shifted
+    /// powers done by multiplying the coefficients of the polynomial by the challenge values
+    /// (i.e. <a1*P1, a2*P2, .., an*Pn>
+    pub fn generate_response(&self, verifier_transcript: &VerifierTranscript) -> ProverTranscript {
         // Generate random scalar in order to encrypt the evaluation of the polynomial
         let b = Scalar::random(&mut rand::thread_rng());
-        let (encrypted_powers, shifted_powers) = challenge.get_challenge_powers();
+        let (encrypted_powers, shifted_powers) = verifier_transcript.get_encrypted_powers();
 
         // Evaluate p(s) = t(s) * h(s) at the encrypted scalars sent by the verifier
-        let px = self.eval(encrypted_powers, &self.coefficients, &b);
+        let px_eval = self.eval(encrypted_powers, &self.coefficients, &b).into();
 
         // Evaluate p(s) = t(s) * h(s) at the encrypted scalars sent by the verifier
-        let hx = self.eval(encrypted_powers, &self.hidden_coefficients, &b);
+        let hx_eval = self
+            .eval(encrypted_powers, &self.hidden_coefficients, &b)
+            .into();
 
         // Evaluate p(s*shift) = t(s*shift) * h(s*shift) at the encrypted & shifted scalars sent by the verifier
-        let px_shifted = self.eval(shifted_powers, &self.coefficients, &b);
-        ProverResponse::new(px, hx, px_shifted)
+        let px_shift_eval = self.eval(shifted_powers, &self.coefficients, &b).into();
+        ProverTranscript::new(px_eval, px_shift_eval, hx_eval)
     }
 
-    // Evaluate polynomial at given encrypted powers. The powers provided to this function
-    // are in the form of s*G, s^2*G, .., s^n*G where s is a scalar raised to powers and then
-    // encrypted by multiplication of the curve generator point G. The result is curve points
-    // e1, e2, .., en. To evaluate the polynomial, the scalar polynomial coefficients
-    // a1, a2, .., an are multiplied by a blinding scalar `b` and then multiplied by the powers
-    // represented by the resulting curve points. The multiplication takes the form of
-    // (a1*b)*e1 + (a2*b)*e2 + .. + (an*b)*en and constitutes the proof response which proves
-    // knowledge of the polynomial coefficients.
+    // To evaluate the polynomial, scalar polynomial coefficients and a blinding scalar `b
+    // are multiplied by the curve points PS_1, PS_2, .., PS_n representing repeated
+    // addition of each curve point. The curve points are then summed together to complete
+    // the polynomial evaluation
     fn eval(
         &self,
-        powers: &[RistrettoPoint],
+        powers: &[G1Projective],
         coefficients: &[Scalar],
         blinding_scalar: &Scalar,
-    ) -> RistrettoPoint {
+    ) -> G1Projective {
         powers
             .iter()
             .zip(coefficients.iter())
@@ -234,12 +240,18 @@ mod tests {
 
     #[test]
     fn test_polynomial_simple_roots_must_divide() {
-        assert_eq!(SimpleRoot::new(2, 1).err().unwrap(), Error::OutsideIntegerField(2, 1));
+        assert_eq!(
+            SimpleRoot::new(2, 1).err().unwrap(),
+            Error::OutsideIntegerField(2, 1)
+        );
     }
 
     #[test]
     fn test_polynomial_roots_must_divide() {
-        assert_eq!(Root::try_from((2i64, 1i64)).err().unwrap(), Error::OutsideIntegerField(2, 1));
+        assert_eq!(
+            Root::try_from((2i64, 1i64)).err().unwrap(),
+            Error::OutsideIntegerField(2, 1)
+        );
     }
 
     #[test]
