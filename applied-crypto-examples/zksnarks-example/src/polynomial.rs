@@ -1,13 +1,14 @@
-//! Implementation of Polynomials used for zksnarks
+//! Implementation of Polynomials used for ZkSnarks
 
 use crate::{
-    error::Error,
     encrypted_zksnark::{ProverTranscript, VerifierTranscript},
+    error::Error,
     unencrypted_zksnark::UnencryptedChallengeResponse,
 };
 use bls12_381::{G1Projective, Scalar};
 use ff::Field;
 
+/// Root with coefficients in the 381-bit prime field used by curve BLS12-381
 #[derive(Clone)]
 pub struct Root {
     pub a: Scalar,
@@ -67,8 +68,7 @@ impl SimpleRoot {
     }
 }
 
-/// Polynomial with coefficients (in the finite field of integers order 2^255-19)
-/// the prover must prove knowledge of
+/// Polynomial with coefficients in the 381-bit prime field used by curve BLS12-381
 #[derive(Clone)]
 pub struct Polynomial {
     // Polynomial roots (a, b) such that a*x + b is a factor of the polynomial
@@ -135,7 +135,9 @@ impl Polynomial {
         let px_eval = self.eval(encrypted_powers, &self.coefficients, &b).into();
 
         // Evaluate p(s) = t(s) * h(s) at the encrypted scalars sent by the verifier
-        let hx_eval = self.eval(encrypted_powers, &self.hidden_coefficients, &b).into();
+        let hx_eval = self
+            .eval(encrypted_powers, &self.hidden_coefficients, &b)
+            .into();
 
         // Evaluate p(s*shift) = t(s*shift) * h(s*shift) at the encrypted & shifted scalars sent by the verifier
         let px_shift_eval = self.eval(shifted_powers, &self.coefficients, &b).into();
@@ -232,12 +234,18 @@ mod tests {
 
     #[test]
     fn test_polynomial_simple_roots_must_divide() {
-        assert_eq!(SimpleRoot::new(2, 1).err().unwrap(), Error::OutsideIntegerField(2, 1));
+        assert_eq!(
+            SimpleRoot::new(2, 1).err().unwrap(),
+            Error::OutsideIntegerField(2, 1)
+        );
     }
 
     #[test]
     fn test_polynomial_roots_must_divide() {
-        assert_eq!(Root::try_from((2i64, 1i64)).err().unwrap(), Error::OutsideIntegerField(2, 1));
+        assert_eq!(
+            Root::try_from((2i64, 1i64)).err().unwrap(),
+            Error::OutsideIntegerField(2, 1)
+        );
     }
 
     #[test]
