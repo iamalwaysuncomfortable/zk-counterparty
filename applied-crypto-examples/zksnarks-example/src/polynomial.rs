@@ -1,25 +1,23 @@
 //! Implementation of Polynomials used for zksnarks
 
 use crate::{
-    encrypted_zksnark::{Challenge, ProverResponse},
     error::Error,
+    encrypted_zksnark::{ProverTranscript, VerifierTranscript},
     unencrypted_zksnark::UnencryptedChallengeResponse,
 };
-use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
+use bls12_381::{G1Projective, Scalar};
+use ff::Field;
 
-/// Single root of a polynomial
 #[derive(Clone)]
 pub struct Root {
-    // a in ax+b
-    a: Scalar,
-    // b in ax+b
-    b: Scalar,
+    pub a: Scalar,
+    pub b: Scalar,
 }
 
 impl Root {
     /// Evaluate the root at a given scalar
     pub fn eval(&self, x: &Scalar) -> Scalar {
-        self.a * x + self.b
+        x * self.a + self.b
     }
 }
 
@@ -128,20 +126,20 @@ impl Polynomial {
     /// Take a verifier challenge and evaluate the polynomial at the encrypted and shifted
     /// powers (in form of <s, s^2, .., s^n> and <shift*s, shift*s^2, .., shift*s^n>
     /// respectively)
-    pub fn generate_response(&self, challenge: &Challenge) -> ProverResponse {
+    pub fn generate_response(&self, challenge: &VerifierTranscript) -> ProverTranscript {
         // Generate random scalar in order to encrypt the evaluation of the polynomial
         let b = Scalar::random(&mut rand::thread_rng());
-        let (encrypted_powers, shifted_powers) = challenge.get_challenge_powers();
+        let (encrypted_powers, shifted_powers) = challenge.get_encrypted_powers();
 
         // Evaluate p(s) = t(s) * h(s) at the encrypted scalars sent by the verifier
-        let px = self.eval(encrypted_powers, &self.coefficients, &b);
+        let px_eval = self.eval(encrypted_powers, &self.coefficients, &b).into();
 
         // Evaluate p(s) = t(s) * h(s) at the encrypted scalars sent by the verifier
-        let hx = self.eval(encrypted_powers, &self.hidden_coefficients, &b);
+        let hx_eval = self.eval(encrypted_powers, &self.hidden_coefficients, &b).into();
 
         // Evaluate p(s*shift) = t(s*shift) * h(s*shift) at the encrypted & shifted scalars sent by the verifier
-        let px_shifted = self.eval(shifted_powers, &self.coefficients, &b);
-        ProverResponse::new(px, hx, px_shifted)
+        let px_shift_eval = self.eval(shifted_powers, &self.coefficients, &b).into();
+        ProverTranscript::new(px_eval, px_shift_eval, hx_eval)
     }
 
     // Evaluate polynomial at given encrypted powers. The powers provided to this function
@@ -154,10 +152,10 @@ impl Polynomial {
     // knowledge of the polynomial coefficients.
     fn eval(
         &self,
-        powers: &[RistrettoPoint],
+        powers: &[G1Projective],
         coefficients: &[Scalar],
         blinding_scalar: &Scalar,
-    ) -> RistrettoPoint {
+    ) -> G1Projective {
         powers
             .iter()
             .zip(coefficients.iter())

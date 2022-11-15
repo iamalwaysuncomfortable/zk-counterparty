@@ -6,8 +6,6 @@ pub enum Error {
     OutsideIntegerField(i64, i64),
     /// Either no public roots were set, or all roots were set to public
     InvalidPublicRoots(usize),
-    /// Proof has already been verified
-    ProofAlreadyVerified,
     /// No public roots set
     NoPublicRoots,
 }
