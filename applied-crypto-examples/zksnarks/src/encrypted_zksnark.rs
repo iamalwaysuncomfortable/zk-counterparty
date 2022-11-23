@@ -73,12 +73,12 @@ impl VerifierTranscript {
         let mut rng = rand::thread_rng();
         let shift = Scalar::random(&mut rng);
         let scalar = Scalar::random(&mut rng);
-        let G2 = G2Projective::generator();
+        let g2 = G2Projective::generator();
         let (encrypted_powers, shifted_powers) =
             Self::calculate_encrypted_powers(&scalar, &shift, target_polynomial.degree());
         let public_root_verification_key =
-            G2Affine::from(G2 * target_polynomial.eval_public_polynomial(&scalar));
-        let power_verification_key = G2Affine::from(G2 * shift);
+            G2Affine::from(g2 * target_polynomial.eval_public_polynomial(&scalar));
+        let power_verification_key = G2Affine::from(g2 * shift);
 
         Self {
             encrypted_powers,
@@ -94,14 +94,14 @@ impl VerifierTranscript {
         shift: &Scalar,
         degree: usize,
     ) -> (Vec<G1Projective>, Vec<G1Projective>) {
-        let G1 = G1Projective::generator();
+        let g1 = G1Projective::generator();
         let mut power = *scalar;
-        let mut encrypted_powers = vec![G1, G1 * scalar];
-        let mut shifted_powers = vec![G1 * shift, G1 * shift * scalar];
+        let mut encrypted_powers = vec![g1, g1 * scalar];
+        let mut shifted_powers = vec![g1 * shift, g1 * shift * scalar];
         for _ in 1..degree {
             power *= scalar;
-            encrypted_powers.push(G1 * power);
-            shifted_powers.push(G1 * (shift * power));
+            encrypted_powers.push(g1 * power);
+            shifted_powers.push(g1 * (shift * power));
         }
         println!("encrypted_powers: {:?}", encrypted_powers);
         (encrypted_powers, shifted_powers)
@@ -155,9 +155,9 @@ impl VerifierTranscript {
 
         // Perform the pairing operations to verify the prover's reported evaluations
         // against the verifier's challenge values
-        let G2 = G2Affine::generator();
-        let pairing_px = bls12_381::pairing(&px_eval, &G2);
-        let pairing_px_shifted = bls12_381::pairing(&px_powers_eval, &G2);
+        let g2 = G2Affine::generator();
+        let pairing_px = bls12_381::pairing(&px_eval, &g2);
+        let pairing_px_shifted = bls12_381::pairing(&px_powers_eval, &g2);
         let pairing_hx_tx = bls12_381::pairing(&hx_eval, &self.public_root_verification_key);
         let pairing_px_shift = bls12_381::pairing(&px_eval, &self.power_verification_key);
         (pairing_px == pairing_hx_tx) && (pairing_px_shifted == pairing_px_shift)
@@ -176,27 +176,27 @@ mod tests {
         let shift = Scalar::from(2u64);
         let (encrypted_powers, shifted_powers) =
             VerifierTranscript::calculate_encrypted_powers(&scalar, &shift, 6);
-        let G1 = G1Affine::generator();
+        let g1 = G1Affine::generator();
 
         // Check encrypted powers match expected curve points
         assert_eq!(encrypted_powers.len(), 7);
-        assert_eq!(encrypted_powers[0], G1.into());
-        assert_eq!(encrypted_powers[1], G1 * Scalar::from(5u64));
-        assert_eq!(encrypted_powers[2], G1 * Scalar::from(25u64));
-        assert_eq!(encrypted_powers[3], G1 * Scalar::from(125u64));
-        assert_eq!(encrypted_powers[4], G1 * Scalar::from(625u64));
-        assert_eq!(encrypted_powers[5], G1 * Scalar::from(3125u64));
-        assert_eq!(encrypted_powers[6], G1 * Scalar::from(15625u64));
+        assert_eq!(encrypted_powers[0], g1.into());
+        assert_eq!(encrypted_powers[1], g1 * Scalar::from(5u64));
+        assert_eq!(encrypted_powers[2], g1 * Scalar::from(25u64));
+        assert_eq!(encrypted_powers[3], g1 * Scalar::from(125u64));
+        assert_eq!(encrypted_powers[4], g1 * Scalar::from(625u64));
+        assert_eq!(encrypted_powers[5], g1 * Scalar::from(3125u64));
+        assert_eq!(encrypted_powers[6], g1 * Scalar::from(15625u64));
 
         // Check shifted powers match expected curve points
         assert_eq!(shifted_powers.len(), 7);
-        assert_eq!(shifted_powers[0], G1 * shift);
-        assert_eq!(shifted_powers[1], G1 * Scalar::from(2 * 5u64));
-        assert_eq!(shifted_powers[2], G1 * Scalar::from(2 * 25u64));
-        assert_eq!(shifted_powers[3], G1 * Scalar::from(2 * 125u64));
-        assert_eq!(shifted_powers[4], G1 * Scalar::from(2 * 625u64));
-        assert_eq!(shifted_powers[5], G1 * Scalar::from(2 * 3125u64));
-        assert_eq!(shifted_powers[6], G1 * Scalar::from(2 * 15625u64));
+        assert_eq!(shifted_powers[0], g1 * shift);
+        assert_eq!(shifted_powers[1], g1 * Scalar::from(2 * 5u64));
+        assert_eq!(shifted_powers[2], g1 * Scalar::from(2 * 25u64));
+        assert_eq!(shifted_powers[3], g1 * Scalar::from(2 * 125u64));
+        assert_eq!(shifted_powers[4], g1 * Scalar::from(2 * 625u64));
+        assert_eq!(shifted_powers[5], g1 * Scalar::from(2 * 3125u64));
+        assert_eq!(shifted_powers[6], g1 * Scalar::from(2 * 15625u64));
     }
 
     #[test]
@@ -207,18 +207,16 @@ mod tests {
             Root::try_from((2, 4)).unwrap(),
         ];
 
-        let G1 = G1Projective::generator();
+        let g1 = G1Projective::generator();
         let polynomial = Polynomial::new(roots, 2).unwrap();
-        let scalar = Scalar::from(5u64);
-        let shift = Scalar::from(2u64);
         let verifier_transcript = VerifierTranscript::new(&polynomial);
         let prover_transcript = polynomial.generate_response(&verifier_transcript);
-        let (px, px_shift, hx) = prover_transcript.get_proof_values();
+        let (px, px_shift, _) = prover_transcript.get_proof_values();
 
         // Check polynomial is properly shifted and does NOT evaluate to unencrypted coefficients
         assert_eq!(polynomial.degree(), 3);
-        assert_ne!(G1Projective::from(px), G1 * Scalar::from(2058u64));
-        assert_ne!(G1Projective::from(px_shift), G1 * Scalar::from(4116u64));
+        assert_ne!(G1Projective::from(px), g1 * Scalar::from(2058u64));
+        assert_ne!(G1Projective::from(px_shift), g1 * Scalar::from(4116u64));
     }
 
     #[test]

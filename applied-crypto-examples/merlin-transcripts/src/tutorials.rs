@@ -59,7 +59,7 @@ pub fn merlin_basics_tutorial() {
     transcript_one.challenge_bytes(b"extraction", &mut buf_3);
     transcript_two.challenge_bytes(b"extraction", &mut buf_4);
 
-    // However, if we give the merlin-example transcripts different outputs to absorb, the outputs
+    // However, if we give the merlin-transcripts transcripts different outputs to absorb, the outputs
     // of the two transcriptions will diverge.
     let mut buf_5 = [0; 8];
     let mut buf_6 = [0; 8];
@@ -70,7 +70,7 @@ pub fn merlin_basics_tutorial() {
 
     // Executable part of the tutorial
     println!();
-    println!("This tutorial demonstrates the basic usage of merlin-example transcripts.");
+    println!("This tutorial demonstrates the basic usage of merlin-transcripts transcripts.");
     println!("We create two Merlin Transcripts 'absorb' the following data into both transcripts");
     println!("using the 'append_message' and 'append_u64' methods");
     println!();
@@ -85,12 +85,12 @@ pub fn merlin_basics_tutorial() {
     println!("which are tied to the history of the transcript");
     println!(
         "8-byte output from transcript 1: {:?} - encoded as u64: {}",
-        hex::encode(&buf),
+        hex::encode(buf),
         u64::from_le_bytes(buf)
     );
     println!(
         "8-byte output from transcript 2: {:?} - encoded as u64: {}",
-        hex::encode(&buf_2),
+        hex::encode(buf_2),
         u64::from_le_bytes(buf_2)
     );
     println!();
@@ -99,12 +99,12 @@ pub fn merlin_basics_tutorial() {
     println!("If desired, we can continue to extract equal outputs from each transcript like so:");
     println!(
         "16-byte output from transcript 1: {:?}, - encoded as u128: {}",
-        hex::encode(&buf_3),
+        hex::encode(buf_3),
         u128::from_le_bytes(buf_3)
     );
     println!(
         "16-byte output from transcript 1: {:?}, - encoded as u128: {}",
-        hex::encode(&buf_4),
+        hex::encode(buf_4),
         u128::from_le_bytes(buf_3)
     );
     println!();
@@ -117,12 +117,12 @@ pub fn merlin_basics_tutorial() {
     println!("Output:");
     println!(
         "8-byte output from transcript 1: {:?} - encoded as u64: {}",
-        hex::encode(&buf_5),
+        hex::encode(buf_5),
         u64::from_le_bytes(buf_5)
     );
     println!(
         "8-byte output from transcript 2: {:?} - encoded as u64: {}",
-        hex::encode(&buf_6),
+        hex::encode(buf_6),
         u64::from_le_bytes(buf_6)
     );
     println!();
