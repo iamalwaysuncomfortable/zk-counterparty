@@ -1,3 +1,5 @@
+#![feature(associated_type_defaults)]
+
 mod encrypted_zksnark;
 mod error;
 mod polynomial;

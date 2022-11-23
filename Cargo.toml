@@ -2,6 +2,7 @@
 
 members = [
     "applied-crypto-examples",
-    "applied-crypto-examples/merlin-example",
-    "applied-crypto-examples/zksnarks-example",
+    "applied-crypto-examples/merlin-transcripts",
+    "applied-crypto-examples/zksnarks",
+    "applied-crypto-examples/curve-operations",
 ]
