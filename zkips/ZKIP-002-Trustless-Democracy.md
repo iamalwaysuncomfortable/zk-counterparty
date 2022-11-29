@@ -1,0 +1,3 @@
+# Zero Knowledge Voting
+
+## Motivation
