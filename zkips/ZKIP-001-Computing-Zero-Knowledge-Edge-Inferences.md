@@ -6,19 +6,14 @@ ZK-Edge proposes a protocol for creation of machine learning inferences that can
 both parties to make decisions based on the inferences without revealing the content of the inferences or data used to
 generate them.
 
-The protocol describes how parties using discriminative machine learning functions of the form `I = f(Y|X)` to generate
-inferences `I` can hide the content of the inferences through hiding functions `h(I)` and construct proofs about the
-content of those inferences `p(h(I))` which counterparties can use within decision logic.
+The protocol describes how parties using discriminative machine learning functions of the form `I = f(Y|X)` to generate inferences `I` can hide the content of the inferences through hiding operations `h(I)` which project the inferences into sets in which an adversary with access to `h(I)` cannot feasibly learn anything from and subsequently construct proofs about the content of those inferences `p(h(I))` which counterparties can use within decision logic.
 
-The protocol is designed to be portable wherein the counterparties are running it on both ends and able to transmit
-encrypted data to each other on any platform.
+The protocol is designed to be portable and lightweight such almost any two counterparties can run it even if they are both constrained in available computing resources.  
 
 # Motivation
 
 When machine learning is performed within an application in a web browser or mobile device, there is little 
-expectation or guarantee of privacy.  Any data the user generates can often be assumed to collected and used
-to make an inference about the user, wherein the inference itself becomes identifying metadata about the user
-that is often sold without their explicit consent beyond agreeing to platform terms of service.
+expectation or guarantee of privacy. Any data the user generates and any inferences made from that data can be assumed to be collected by the platform serving the user. These data are often used and sold without a user's explicit consent beyond agreeing to generally opaque platform terms of service.
 
 However, the usefulness of inferences in creating desirable user experiences has arguably been shown.
 So it is optimal to not have a binary choice between privacy and utility and motivates the creation
@@ -26,23 +21,28 @@ of a system which can provide both.
 
 ## Prior Art
 
-Current efforts exist to create private machine learning, but to date many are in research phases and there is a lack of
-easily usable protocol implementations that allow data protection. Many focus on being able to train models homomorphically
-but no protocols for end-usage of algorithms. Thus this protocol is focused on enabling easy application-level privacy
-protection within machine learning.
+Current efforts exist to create private machine learning, but to date many are in research phases and there is a lack of easily usable protocol implementations that allow data protection. Many focus on being able to train models using homomorphic encryption, but there are little available protocols protecting the data used as inputs `inference` functions and the resulting inferences they output. Thus this protocol is focused on enabling easy application-level privacy protection for applications employing machine learning.
 
 # Protocol Overview
 
-ZK-Edge assumes two parties Alice and Bob who are both capable using inference function `{x : I(x) = f(y | x) }` that takes private input data `x` to generate an inference `I`. 
+## Definitions and Description
 
-They are also capable of  using the inference `I` and associated data `AD` to generate a proof set `P = { (x, AD) : P1(I, AD), .., PN(I, AD) }` that proves desired statements `{S1, .., SN}` about that data and sending those to each other. The proof should be structured such that neither Bob or any other party who obtains the proof gains information about the inference or data inputs to the inference function. The proofs `P` are then used to do verification operations on the proofs which can also intake potential decision data `[d1..dN]` into a verification function `V(P, [d1..dN]) -> R`. The result of the verification function `R` can then be used as inputs Bob's program `D` to make decisions.
+ZK-Edge assumes two parties Alice and Bob who are both capable using an inference function `{x : I(x) = f(y | x) }` that takes private input data `x` to generate an inference `I`. 
 
-This process is shown graphically below.
+They are also capable of  using the inference `I` and associated data `AD` to generate a proof set `P = { (x, AD) : P1(I, AD), .., PN(I, AD) }` that proves desired statements `S = {S1, .., SN}` about that data. They are also both able to send `AD`, `S`, and `P` to each other over the public internet. 
+
+Proofs `P` and associated data `AD` should be structured such that no other party who obtains them gains information about the secret data inputs `x` to the inference function nor the resulting inferences `I` beyond what the proof statement proves. Once the proofs `P` are exchanged or posted publicly, verification operations on the proofs can be performed. These verification operations may also intake potential decision data `d = [d1..dN]` that the verifying party creates into a verification function `V(P, [d1..dN]) -> R`. The result of the verification function `R` can then be used as inputs verifier's program `D` to make decisions.
+
+In certain rare cases either party use a hiding function `H` on sensitive data `x`, `I`, or `d` to create hidden versions of subsets of the sensitive data `Hx`, `HI` and `Hd` respectively that are needed for proofs. The hiding function should produce an output that is as close to perfectly hiding as possible and should be discrete log hard to reverse.
+
+## Graphical summary
+
+Shown below is a graphic representation of the basic information flow ZK-Edge desires to to achieve.
 
 ```mermaid
 flowchart LR
     subgraph Alice
-    A[Generate Data]-->|data: x|B[\"Inference: I(x) = f(y| x)"\]
+    A[Data]-->|data: x|B[\"Inference: I(x)"\]
     B -->|data: I|C[\"Proofs: P(I, AD)"\]
     end
     subgraph Bob
@@ -51,8 +51,7 @@ flowchart LR
     end
 ```
 
-
-Naturally the protocol will need to include verification that a correct statement was run, and may include previously published proof data. 
+A complete implementation of the protocol will need to include several extra components to ensure that statements about data are indeed what the proofs achieve as well as concrete descriptions about how proofs are constructed and their correctness is verified. Thus a better summarical representation would look like the following wherein challenge data is provided beforehand to ensure the correct inferences are run and that the proofs are not about arbitrary statements.
 
 ```mermaid
 flowchart TB
@@ -70,30 +69,32 @@ flowchart TB
     end
 ```
 
+Implementation level details and a more complete diagrammatic representation of ZK-Edge is laid out in the `Protocol Description` section below.
+
 # Protocol Goals
 
 ## Privacy Goals
 
-It is assumed that both Alice and Bob have the following data they don't want to reveal to other parties:
+For two parties Alice and Bob using ZK-Edge, it is assumed they both have the following data they don't want to reveal to each other or other parties:
   * Sensitive data `x` that serves as inputs to inference functions `I(x)`
   * Derived inferences `I` which by definition are statistics about Alice or Bob's data
   * Decision parameters `d` which reveal preferences
 
 The following privacy goals are thus established based on this information sensitivity:
 
-1. **Sensitive Shouldn't Leak:** Ensure all sensitive data `x`, inferences `I` and decision parameters `d` are never directly exposed (for example, being sent over the wire)
+1. **Sensitive Data Owned By a Party Shouldn't Be Exposed to Other Parties:** Ensure all sensitive data `x`, inferences `I` and decision parameters `d` are never directly exposed to parties except for the party that generated these data.
 
-2. **Encrypted Secrets Reveal No Information:** Collection of encrypted versions of `E(x)`, `E(I)` and `E(d)` by a counterparty or any third party do not reveal any data about these secrets
+2. **Hidden Secrets Reveal No Information:** Collection of hidden versions of data `Hx`, `HI` and `Hd` by a counterparty or any third party do not reveal any information
 
-3. **Proofs Should Not Invadvertently Leak Secrets:** Secrets are not discoverable over multiple proofs (necessitating appropriate blinding factors)
+3. **Proofs Should Not Invadvertently Leak Secrets:** Secrets are not discoverable over multiple proofs. This will necessitate the use of cryptographic pratices such as using appropriate blinding factors, using appropriately strong sources of randomness or determinstic sources of it, NOT re-using randomn numbers, etc.
    
-4. **Public Proof Statements Should't Lead to Reconstruction of Original Data:** It should be impossible to gain significant information about the original data through Public or semi-public proof statements 
+4. **Public Proof Statements Should't Lead to Reconstruction of Original Data:** It should be impossible to gain significant information about the original data beyond the narrow scope of public or semi-public proof statements 
 
 ## Non-Goals 
 
-1. **Statements can be public:** Statements are not meant to be hidden and can be published publicly or shared in cleartext over the while
+1. **Statements Can Be Public:** Statements are not meant to be hidden and can be published publicly or a be decryptable into cleartext by the counterparty
    
-2. **Proved Statements can be Statistics:** The protocol is meant to protect mining of data. It does not however prevent the results of what's proved from becoming a statistic itself. It is left to the protocol implementors to decide how much what data public statements being proved reveal
+2. **Proved Statements can be Statistics:** The protocol is meant to protect against mining of data sent to a counterparty. It does not however prevent the results of what's proved from becoming a statistic itself. It is left to the protocol implementors what information public statements being proved reveal
    
 3. **Not Fully Homomorphic ML:** The protocol posits that the machine learning functions and data inputs `f(y|x)` themselves are not required to be encrypted so long as they do not leave an environment trusted by the protocol user. This does not **prevent** one from using a fully homomorphic encryption scheme with this protocol however.
 
@@ -102,7 +103,7 @@ The following privacy goals are thus established based on this information sensi
 ## How a statement about an inference is proved
 An inference `I` is assumed to be some kind of numerical statement wherein a continous, ordered, or categorical value is produced.
 
-### Proof of Continous and Ordered Inferences via Range Proofs
+### Ordered Disecrete or Continous Outputs
 
 * Continous: I(x) = Float in Real Numbers
 * Ordered: I(X) = {a: Set A where a is finite and ordered}
@@ -190,6 +191,7 @@ This can be done through a signature scheme wherein Alice and Bob sign the data 
 Data sent between parties needs to pass through a scheme wherein the data is  computationally discrete log hard to reverse. 
 
 ### Ensure proofs don't leak secrets across multiple proofs
+A problem could exist 
 
 ## Integrating all of the requirements
 
