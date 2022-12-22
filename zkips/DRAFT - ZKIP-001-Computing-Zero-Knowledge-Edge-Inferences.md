@@ -1,5 +1,8 @@
 # ZKIP 001 - ZK-Edge - Zero-Knowledge Sharing of Edge Inferences for Use in Decision Functions
 
+# Preface
+This document is aimed at an audience that would be able to implement it, thus knowledge of basic cryptography, zero knowledge proof, and machine learning theory is assumed. For a concise introduction to these concepts, [this reference may be helpful](https://arxiv.org/pdf/1907.06381.pdf).
+
 # Summary
 
 ZK-Edge proposes a protocol in which a party can create machine learning inferences and prove relevant details about those inferences to third parties in a way that allows third parties to make decisions based on those proofs without needing to know the original inferences or the data used to generate them. 
@@ -14,7 +17,7 @@ Because prediction is so vital to decisions and is where much data leakage happe
 
 # Protocol Overview
 
-ZK-Edge assumes two parties Alice and Bob who both have  capable using a set of prediction functions: 
+ZK-Edge assumes two parties the Prover and the Verifier who both have  capable using a set of prediction functions: 
 
 `I = { f1(y1|X), f2(y2|X), ..., fn(yn|X) }` 
 
@@ -38,11 +41,11 @@ Shown below is a graphic representation of the basic information flow ZK-Edge de
 
 ```mermaid
 flowchart LR
-    subgraph Alice
+    subgraph Prover
     A[Data]-->|data: x|B[\"Prediction: R(y|x)"\]
     B -->|data: I|C[\"Proofs: P(R, AD)"\]
     end
-    subgraph Bob
+    subgraph Verifier
     C -->|wire: P| D[\"V(P)"\]
     D -->|R|E[\"Decision: D(V)"\]
     end
@@ -52,11 +55,11 @@ A complete implementation of the protocol will need to include several extra com
 
 ```mermaid
 flowchart TB
-    subgraph Alice
+    subgraph Prover
     A[Generate Data]-->|data: x|B[\"Prediction: R(x) = f(y| x)"\]
     B -->|data: I|C[\"Proofs: p(R, AD)"\]
     end
-    subgraph Bob
+    subgraph Verifier
     C -->|wire-data: P| D[\"V(P)"\]
     D -->|R|E[\"Decision: D(V)"\]
     F[Decision Data] --> H[Blinding Function]
@@ -72,9 +75,9 @@ Implementation level details and more complete diagrammatic representations of Z
 
 ## Privacy Goals
 
-For two parties Alice and Bob using ZK-Edge, it is assumed they both have the following data they don't want to reveal to each other or other parties:
+For two parties using ZK-Edge, it is assumed they both have the following data they don't want to reveal to each other or other parties:
   * Sensitive data `X` that serves as inputs to prediction functions `F`
-  * Predictions `R` which by definition are statistics about Alice or Bob's data
+  * Predictions `R` which by definition are statistics about Prover or the Verifier's data
   * Decision parameters `D` which reveal the preferences of the parties receiving the inference proofs `P`
 
 The following privacy goals are thus established based on this information sensitivity:
@@ -98,29 +101,95 @@ The following privacy goals are thus established based on this information sensi
 # Protocol Description
 
 ## Proving Statements About Inferences
-The output of most prediction functions is generally  categorical or ordered data. In this section, it is described what can be proved about these data such actionable decisions can be made and how these proofs are constructed.
+Most prediction functions within supervised learning contexts output categorical or ordered data. In this section, it is described what can be proved about these data such actionable decisions can be made and how these proofs are constructed.
 
-In all cases the following invariants apply
+## Proof Invariants
+In all cases the following invariants apply:
+- **Functions are the same amongst all parties:** The prover and Verifier agree on the exact set of Functions `F` that will be run in order to provide the inference. This includes agreement on the function's weights. How this agreement is reached is explained in the "Requirements for Correctness" section.
+- **Data formats are agreed upon by all parties:** Given output formats can vary widely, concrete agreement is necessary on data formatting between all parties.
+- **Well-Defined Proving System:** The protocol provides a finite set of well defined proof methods `P` within it's API. New methods should not be able to be arbitrarily introduced. The Prover and Verifiers agree on the proofs used and verifiers have methods for verifying proof methods in a zero knowledge fashion
+- **Public Statements"** The statements to be proved are public to all parties and verifiers can verify proofs are about these statements
+
+## Proofs About Ordered Data
+
+Ordered data is most often in the form of a small set of ordered values (such credit score brackets) or "continous" outputs which span a large range of values of a core data type (floats, integers, etc.). Decisions on ordered data usually involve choosing ranges the data must lie within in order for specific decisions to made. 
+
+To prove values lie within specific ranges, range proofs are an obvious choice. For small ordered sets, set membership proofs are a secondary option when they have benefits such as non-interactivity, reducing the proof size or lowering the computational resources needed.
+
+### How to Apply Range Proofs
+
+Most Range Proofs are designed to make statements about integers from a finite integer field of prime order OR about integers between ranges of binary powers (i.e. `{r E Z, n E N: 2^0 < r < 2^n}`). The ordering of ML function outputs is the main criteria used for decisions, but often the outputs may be vector valued and may be from sets which are not explicitly numerical or algebraic (an example being: R = {"Very Poor", "Poor", "Fair", "Good", "Excellent"}). 
+
+Given we need integers for most range proofs, if outputs are not already ordered integers, an explicit mapping between the ML function f(y|x) natural outputs and the format used within range proofs is needed. Implementors of this protocol should provide data formatting tools which provide explicit conversions.
+
+An example of available conversions might include those pictured in the table below. The most important consideration is to keep these mappings consistent between the output format of machine learning functions `f(y|x)` and the necessary input formats of the proof set `P`.
+
+| Base Type | Final Type | Operation | Sample Input | Sample Output |
+| ------------- | ---------- | ---------- |------------- | -------------- |
+| float | integers | truncation | 1.15e9 | 1_150_000_000 |
+| float vector | integer vector | truncation | {1.1e3, 2.2e3} | {1100, 2200} |
+| float | integers | mapping | 1.15e300 | 1_150_000_000 |
+| non-numeric set | integers | mapping | {"A", "B", "C", "D", F"} | {1, 3, 15, 255, 65535} |
+| integers | integers | mapping | {1, 2, 3, 4, 5} | {1, 3, 15, 255, 65535} |
+| integers | finite scalar | typecast | {1, 2} | {Scalar(1), Scalar(2)} |
 
 
-### Ordered Data
 
-Ordered data is often either in the form of "continous" outputs which span the value of a data type like floats or integers or a small set of ordered values (such credit score brackets) Applications such as price prediction and risk scoring often work by setting a ranged decision threshold based upon this data. For these applications, range proofs provide an excellent method of zero knowledge proving. 
+### Specific Range Proving Systems
 
+### Applying set membership proofs as range proofs
 
+In the case of small ordered sets, simple set proofs can suffice. Depending on the dataset, this can have several upsides including
+- Using the original output as the input messages to the proof
+- Smaller & faster proofs by avoiding large setup costs
+- Greater simplicity in the proof
+
+Set membership examples:
+
+#### **Ordered Merkle Tree**
+```mermaid
+graph TB
+    subgraph Ordered Set
+    A(1)-->B(2)
+    A-->C(3)
+    B-->D(4)
+    B-->E(5)
+    C-->F(6)
+    C-->G(7)
+    D-->H("0-2%")
+    D-->I("2-5%")
+    E-->J("5-8%")
+    subgraph Proof Subset
+    subgraph True Value
+    K("8-12%")
+    end
+    L("15-20%")
+    M("25-32%")
+    end
+    E-->K
+    F-->L
+    F-->M
+    G-->N("32+%")
+    G-->O("DNL")
+    end
+```
+
+The basic flow would look roughly like the following:
 ```mermaid
 flowchart LR
-    subgraph Alice
+    subgraph Prover
     A[\"Prediction: 
     I(x) = f(y| x)"\] -->|data: I|C[\"RangeProof(I)"\]
     C --> E[\"Proof Transcript: 
     (Signature, Range Proof, 
     Range Statement)"\]
     end
-    subgraph Bob
+    subgraph Verifier
     E --> F[Verification]
     end
 ```
+
+
 
 ### Proof of Categorical Values via Set Membership Proofs
 
@@ -128,14 +197,14 @@ Proving Categorical values is slightly harder under the assumption of not learni
 
 ```mermaid
 flowchart LR
-    subgraph Alice
+    subgraph Prover
     A[\"Prediction: 
     I(x) = f(y| x)"\] -->|data: I|C[\"Set Membership Proof(I)"\]
     C --> E[\"Proof Transcript
     (Signature, Membership Proof, 
     Membership Statement)"\]
     end
-    subgraph Bob
+    subgraph Verifier
     E --> F[Verification]
     end
 ```
@@ -150,11 +219,11 @@ To prove the function is evaluated correctly the Verifier sends challenge data t
 
 ```mermaid
 flowchart TB
-    subgraph Alice
+    subgraph Prover
     A[Generate Data]-->|data: x|B[\"Prediction: I(x) = f(y| x)"\]
     B -->|data: I|C[\"Proofs: P(I, AD)"\]
     end
-    subgraph Bob
+    subgraph Verifier
     C -->|wire-data: P| D[\"V(P)"\]
     D -->|R|E[\"Decision: D(R)"\]
     G[Challenge Data] --> |wire-data: challenge|B
@@ -176,9 +245,9 @@ The verifier then verifies usage of the secret data through a bilinear pairing:
 
 ### Ensure the data being sent from the correct counterparty
 
-When data is sent from Alice to Bob, bob needs to ensure that it is actually alice communicating with him. And conversely Alice should be able to ensure any challenge data is sent.
+When data is sent from a Prover to the Verifier, the verifier needs to ensure that it is actually the prover communicating with them. And conversely the Prover should be able to ensure any challenge data is sent.
 
-This can be done through a signature scheme wherein Alice and Bob sign the data sent to each other.
+This can be done through a signature scheme wherein the Prover and the Verifier sign the data sent to each other.
 
 `sign(data, key material)`
 
