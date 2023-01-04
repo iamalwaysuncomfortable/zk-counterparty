@@ -101,14 +101,23 @@ The following privacy goals are thus established based on this information sensi
 # Protocol Description
 
 ## Proving Statements About Inferences
-Most prediction functions within supervised learning contexts output categorical or ordered data. In this section, it is described what can be proved about these data such actionable decisions can be made and how these proofs are constructed.
+Most prediction functions within supervised learning contexts output categorical or ordered data. Proof families that make statements about these type of data (most often being statements range and set membership) are of primary interest. 
+
+Within these families, constraints arising from how predictions are used provide the selection criteria for which concrete proving systems to choose. Common constraints are outlined below and inform concrete recommendations for proof families within ZkEdge.
+
+| Protocol Concern | Level | Desired Proof Characteristics | Example | 
+| -- | -- | -- | -- |
+| Frequency of Prediction | High | Short proving time, Non-Interactivity, Small Proof Size | Chat Applicaton
+| Bandwidth | Low | Small Proof Size | Mobile Application |
+| Verifier Resources | Low | Small Proof Size, Short Verification, Time | Mobile Application |
+| Decision Speed Requirement | High | Non-Interactivity, Short Verification  | Financial Application
 
 ## Proof Invariants
 In all cases the following invariants apply:
-- **Functions are the same amongst all parties:** The prover and Verifier agree on the exact set of Functions `F` that will be run in order to provide the inference. This includes agreement on the function's weights. How this agreement is reached is explained in the "Requirements for Correctness" section.
+- **Prediciton Functions are the same amongst all parties:** The prover and Verifier agree on the exact set of Functions `F` that will be run in order to provide the inference. This includes agreement on the function's weights and inference modes. How this agreement is reached is explained in the "Requirements for Correctness" section.
 - **Data formats are agreed upon by all parties:** Given output formats can vary widely, concrete agreement is necessary on data formatting between all parties.
 - **Well-Defined Proving System:** The protocol provides a finite set of well defined proof methods `P` within it's API. New methods should not be able to be arbitrarily introduced. The Prover and Verifiers agree on the proofs used and verifiers have methods for verifying proof methods in a zero knowledge fashion
-- **Public Statements"** The statements to be proved are public to all parties and verifiers can verify proofs are about these statements
+- **Public Statements** The statements to be proved are public to all parties and verifiers can verify proofs are about these statements
 
 ## Proofs About Ordered Data
 
@@ -116,13 +125,13 @@ Ordered data is most often in the form of a small set of ordered values (such cr
 
 To prove values lie within specific ranges, range proofs are an obvious choice. For small ordered sets, set membership proofs are a secondary option when they have benefits such as non-interactivity, reducing the proof size or lowering the computational resources needed.
 
-### How to Apply Range Proofs
+## Range Proofs
 
-Most Range Proofs are designed to make statements about integers from a finite integer field of prime order OR about integers between ranges of binary powers (i.e. `{r E Z, n E N: 2^0 < r < 2^n}`). The ordering of ML function outputs is the main criteria used for decisions, but often the outputs may be vector valued and may be from sets which are not explicitly numerical or algebraic (an example being: R = {"Very Poor", "Poor", "Fair", "Good", "Excellent"}). 
+Most Range Proofs are designed to make statements about integers from a finite integer field of prime order OR about integers between ranges of binary powers (i.e. ${r \epsilon Z, n \epsilon N: 2^0 < r < 2^n}$). The ordering of ML function outputs is the main criteria used for decisions, but often the outputs may be vector valued and may be from sets which are not explicitly numerical or algebraic (an example being: R = {"Very Poor", "Poor", "Fair", "Good", "Excellent"}). 
 
 Given we need integers for most range proofs, if outputs are not already ordered integers, an explicit mapping between the ML function f(y|x) natural outputs and the format used within range proofs is needed. Implementors of this protocol should provide data formatting tools which provide explicit conversions.
 
-An example of available conversions might include those pictured in the table below. The most important consideration is to keep these mappings consistent between the output format of machine learning functions `f(y|x)` and the necessary input formats of the proof set `P`.
+An example of available conversions might include those pictured in the table below. The most important consideration is to keep these mappings consistent between the output format of machine learning functions `f(y|x)` and the necessary input formats of the proof set `P`. Once this is achieved range proofs can be used.
 
 | Base Type | Final Type | Operation | Sample Input | Sample Output |
 | ------------- | ---------- | ---------- |------------- | -------------- |
@@ -133,81 +142,52 @@ An example of available conversions might include those pictured in the table be
 | integers | integers | mapping | {1, 2, 3, 4, 5} | {1, 3, 15, 255, 65535} |
 | integers | finite scalar | typecast | {1, 2} | {Scalar(1), Scalar(2)} |
 
-
-
 ### Specific Range Proving Systems
+Unfortunately Production grade range proving systems are not yet widely available. Several zero knowledge range proving algorithms are known, but well-audited range proving libraries and services are not yet widely available. The options to implmentors of this protocol are to use the few existing technologies or to self-implement known algorithms.
 
-### Applying set membership proofs as range proofs
+**Pre-Existing Systems with Robust Support**
+* BulletProofs: Works on an inner product argument. Existing concrete implementations.
+* ZkSnarks: Requires trusted setup but very quick to verify
+* ZkStarks: No truste setup.
 
-In the case of small ordered sets, simple set proofs can suffice. Depending on the dataset, this can have several upsides including
-- Using the original output as the input messages to the proof
-- Smaller & faster proofs by avoiding large setup costs
-- Greater simplicity in the proof
+**Other Systems with Few-No Implementations**
+* Set Based Range Proofs
+* Signature Based Range Proofs
+* Commitment Based Ranged Proofs
 
-Set membership examples:
+## Proof of Categorical Values
 
-#### **Ordered Merkle Tree**
-```mermaid
-graph TB
-    subgraph Ordered Set
-    A(1)-->B(2)
-    A-->C(3)
-    B-->D(4)
-    B-->E(5)
-    C-->F(6)
-    C-->G(7)
-    D-->H("0-2%")
-    D-->I("2-5%")
-    E-->J("5-8%")
-    subgraph Proof Subset
-    subgraph True Value
-    K("8-12%")
-    end
-    L("15-20%")
-    M("25-32%")
-    end
-    E-->K
-    F-->L
-    F-->M
-    G-->N("32+%")
-    G-->O("DNL")
-    end
-```
-
-The basic flow would look roughly like the following:
-```mermaid
-flowchart LR
-    subgraph Prover
-    A[\"Prediction: 
-    I(x) = f(y| x)"\] -->|data: I|C[\"RangeProof(I)"\]
-    C --> E[\"Proof Transcript: 
-    (Signature, Range Proof, 
-    Range Statement)"\]
-    end
-    subgraph Verifier
-    E --> F[Verification]
-    end
-```
-
-
-
-### Proof of Categorical Values via Set Membership Proofs
-
-Proving Categorical values is slightly harder under the assumption of not learning anything about the Prediction I given that categorical variables are unique points. However this can be mitigated by proving that the categorical variable is within a specific subset 
+When working with purely categorical predictions, decision logic is slightly harder to develop under a zero-knolwedge assumption about an inference `R`. If a decision predicated upon an inference belonging to a single category, if the verifier knows the result of the decision, they also known which category the prediction made. 
 
 ```mermaid
 flowchart LR
-    subgraph Prover
-    A[\"Prediction: 
-    I(x) = f(y| x)"\] -->|data: I|C[\"Set Membership Proof(I)"\]
-    C --> E[\"Proof Transcript
-    (Signature, Membership Proof, 
-    Membership Statement)"\]
-    end
-    subgraph Verifier
-    E --> F[Verification]
-    end
+    D["Categories = {Dog, Cat Bug}"]
 ```
+
+```mermaid
+flowchart LR
+
+    Proof-->Verify-->Decision
+    Decision-->Dog["If 'Dog' - Walk"]
+    Decision-->Cat["If 'Cat' - Pet"]
+    Decision-->Bug["If 'Bug' - Scream"]
+```
+
+Given this fact, we have several options for categorical proofs
+
+1. **Reveal the Category, but not the data used to prove it** The prover reveals the category, but none of the data used to prove it except for proofs showing that the correct function was run. In this case, a simple encryption or diffe hellman key exchange may be used to simply hide the inference except between the two parties. This may seem to break the invariant of hiding inferences, but in this case the inference can be viewed as the desired statement. 
+2. **Prove subset membership** The prover proves the category is within a small subset of total categories. In this case, set proof memberships are the workhorse.
+3. **Reveal The Category to a Zero Knowledge Decision Algorithm** In this case the prover sends a hidden result, which is then used to make a decision that is hidden from the verifier. This decision could be creation of encrypted data within a database, a response to the prover only the prover can decode, or a resulting action on a system the verifier cannot view. This option would necessitate creation a zero-knowledge decision protocol, which is beyond the scope of this document. However it is mentioned here for completeness.
+
+### Revealing Categories Directly
+In the case where the prover wants to reveal the category - they are able to do so with a simple commitment.
+
+$c = <cat, dog, bug> = <n1, n2, n3>$
+
+$C = n1*G + y*H$
+
+### Proving subet Membership
+
 
 
 ## Requirements for Correctness
@@ -231,7 +211,7 @@ flowchart TB
     end
 ```
 
-This could be verified for instance with a bilinear pairing wherein the prover evaluates the following functoions
+This could be verified for instance with a bilinear pairing wherein the prover evaluates the following functions
 
 `f(challenge), f(secret data), f(challenge*secret data)`
 
