@@ -1,9 +1,9 @@
 [workspace]
 
 members = [
+    "applied-crypto-references/aleo-cryptography",
     "applied-crypto-references",
     "applied-crypto-references/curve-operations",
     "applied-crypto-references/merlin-transcripts",
     "applied-crypto-references/zksnarks",
-    "proving-libraries"
 ]

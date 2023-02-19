@@ -1,0 +1,7 @@
+[package]
+name = "aleo-cryptography"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+snarkvm = { version = "0.9.13", features = [ "utilities", "curves" ] }
