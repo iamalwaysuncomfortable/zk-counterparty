@@ -1,0 +1,9 @@
+[package]
+name = "aleo_python"
+authors = ["Mike Turner"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pyo3 = { version = "0.18.2", features = ["extension-module"] }
+snarkvm = { version = "0.9.14", features = ["console"] }

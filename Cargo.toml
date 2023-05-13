@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "aleo_python",
     "applied-crypto-references/aleo-cryptography",
     "applied-crypto-references",
     "applied-crypto-references/curve-operations",
